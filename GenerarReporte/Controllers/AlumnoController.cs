@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using GenerarReporte.Models;
+using ClosedXML.Excel;
+using System.Data;
 
 namespace GenerarReporte.Controllers
 {
@@ -151,6 +153,48 @@ namespace GenerarReporte.Controllers
         private bool AlumnoExists(int id)
         {
             return _context.Alumnos.Any(e => e.Id == id);
+        }
+
+        public async Task<IActionResult> ExportarExcel()
+        {
+            //Hacemos la consulta y la gardamos 
+            var _alumnos = await _context.Alumnos.ToListAsync();
+
+            // Le damos nombre al archivo que se va generar 
+            var nombreArchivo = $"ListadoAlumnos.xlsx";
+
+            //hacemos uso de DataTable para colocar los registros 
+            //hacemos uso de los using - System.Data; 
+            //                         - DataTable = System.Data.DataTable; 
+
+            DataTable dataTable = new DataTable("Lista1");
+            dataTable.Columns.AddRange(new DataColumn[]
+            {
+                new DataColumn("Nombre "),
+                new DataColumn("Edad"),
+            });
+
+            //Ccolocamos el resultado de la consulta al dataTable 
+            foreach (var alumno in _alumnos)
+            {
+                dataTable.Rows.Add(alumno.Nombre, alumno.Edad);
+            }
+            //Analista de sistemas  
+
+            //Agregamos using XLWorkbook para poder generar el archivo ..  
+            //ClosedXML.Excel; 
+            using (XLWorkbook wb = new XLWorkbook())
+            {
+                wb.Worksheets.Add(dataTable);
+                using (MemoryStream strem = new MemoryStream())
+                {
+                    wb.SaveAs(strem);
+                    return File(strem.ToArray(), "Aplicaction/vnd.openxmlformats.spreadsheetml.sheet",
+                            nombreArchivo);
+                }
+            }
+            ;
+            return RedirectToAction(nameof(Index));
         }
     }
 }
