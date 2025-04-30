@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using GenerarReporte.Models;
 using ClosedXML.Excel;
 using System.Data;
+using QuestPDF.Fluent;
 
 namespace GenerarReporte.Controllers
 {
@@ -195,6 +196,35 @@ namespace GenerarReporte.Controllers
             }
             ;
             return RedirectToAction(nameof(Index));
+        }
+        public async Task<IActionResult> ExportarPdf()
+        {
+            var alumnos = await _context.Alumnos.ToListAsync();
+
+            var stream = new MemoryStream();
+
+            Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(30);
+
+                    page.Content().Column(col =>
+                    {
+                        // Título simple
+                        col.Item().Text("Nombre - Edad").Bold().FontSize(14);
+
+                        // Lista de alumnos
+                        foreach (var alumno in alumnos)
+                        {
+                            col.Item().Text($"{alumno.Nombre} - {alumno.Edad}").FontSize(12);
+                        }
+                    });
+                });
+            }).GeneratePdf(stream);
+
+            stream.Position = 0;
+            return File(stream.ToArray(), "application/pdf", "ListadoAlumnos.pdf");
         }
     }
 }
