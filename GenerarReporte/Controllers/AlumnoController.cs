@@ -9,6 +9,7 @@ using GenerarReporte.Models;
 using ClosedXML.Excel;
 using System.Data;
 using QuestPDF.Fluent;
+using Xceed.Words.NET;
 
 namespace GenerarReporte.Controllers
 {
@@ -156,9 +157,10 @@ namespace GenerarReporte.Controllers
             return _context.Alumnos.Any(e => e.Id == id);
         }
 
-        public async Task<IActionResult> ExportarExcel()
+        public async Task<IActionResult> ExportarExcel() /*int id*/
         {
             //Hacemos la consulta y la gardamos 
+
             var _alumnos = await _context.Alumnos.ToListAsync();
 
             // Le damos nombre al archivo que se va generar 
@@ -225,6 +227,35 @@ namespace GenerarReporte.Controllers
 
             stream.Position = 0;
             return File(stream.ToArray(), "application/pdf", "ListadoAlumnos.pdf");
+        }
+        public IActionResult ExportarWord()
+        {
+            var alumnos = _context.Alumnos.ToList();
+
+            using (var stream = new MemoryStream())
+            {
+                using (var doc = DocX.Create(stream))
+                {
+                    // Título
+                    var titulo = doc.InsertParagraph("Nombre - Edad")
+                        .Bold()
+                        .FontSize(14)
+                        .SpacingAfter(15);
+
+                    // Lista de alumnos
+                    foreach (var alumno in alumnos)
+                    {
+                        doc.InsertParagraph($"{alumno.Nombre} - {alumno.Edad}");
+                    }
+
+                    doc.Save();
+                }
+
+                stream.Seek(0, SeekOrigin.Begin);
+                return File(stream.ToArray(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "alumnos.docx");
+            }
         }
     }
 }
