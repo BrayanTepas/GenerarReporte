@@ -157,104 +157,134 @@ namespace GenerarReporte.Controllers
             return _context.Alumnos.Any(e => e.Id == id);
         }
 
+        // Método asincrónico que genera y exporta un archivo Excel con la lista de alumnos
         public async Task<IActionResult> ExportarExcel() /*int id*/
         {
-            //Hacemos la consulta y la gardamos 
-
+            // Hacemos la consulta a la base de datos y la guardamos en una variable
             var _alumnos = await _context.Alumnos.ToListAsync();
 
-            // Le damos nombre al archivo que se va generar 
+            // Le damos nombre al archivo Excel que se va a generar
             var nombreArchivo = $"ListadoAlumnos.xlsx";
 
-            //hacemos uso de DataTable para colocar los registros 
-            //hacemos uso de los using - System.Data; 
-            //                         - DataTable = System.Data.DataTable; 
-
+            // Creamos un DataTable para colocar los registros
+            // Se requiere el using: System.Data;
+            // DataTable representa una tabla en memoria
             DataTable dataTable = new DataTable("Lista1");
+
+            // Agregamos las columnas que tendrá el DataTable
             dataTable.Columns.AddRange(new DataColumn[]
             {
-                new DataColumn("Nombre "),
-                new DataColumn("Edad"),
+        new DataColumn("Nombre "),
+        new DataColumn("Edad"),
             });
 
-            //Ccolocamos el resultado de la consulta al dataTable 
+            // Colocamos el resultado de la consulta dentro del DataTable
             foreach (var alumno in _alumnos)
             {
+                // Agregamos una fila por cada alumno con su nombre y edad
                 dataTable.Rows.Add(alumno.Nombre, alumno.Edad);
             }
-            //Analista de sistemas  
 
-            //Agregamos using XLWorkbook para poder generar el archivo ..  
-            //ClosedXML.Excel; 
+            // Usamos la biblioteca ClosedXML para generar el archivo Excel
+            // Se requiere el using: ClosedXML.Excel;
             using (XLWorkbook wb = new XLWorkbook())
             {
+                // Agregamos el DataTable como una hoja del libro de Excel
                 wb.Worksheets.Add(dataTable);
+
+                // Creamos un stream de memoria para guardar el archivo generado
                 using (MemoryStream strem = new MemoryStream())
                 {
+                    // Guardamos el archivo Excel en el stream
                     wb.SaveAs(strem);
+
+                    // Retornamos el archivo Excel como una respuesta de descarga
                     return File(strem.ToArray(), "Aplicaction/vnd.openxmlformats.spreadsheetml.sheet",
                             nombreArchivo);
                 }
             }
-            ;
+
+            // En caso de no retornar el archivo, se redirige a la acción Index (esta línea nunca se ejecutará realmente)
             return RedirectToAction(nameof(Index));
         }
+
+        // Método asincrónico que exporta un PDF con la lista de alumnos
         public async Task<IActionResult> ExportarPdf()
         {
+            // Obtiene la lista de alumnos de la base de datos de forma asincrónica
             var alumnos = await _context.Alumnos.ToListAsync();
 
+            // Crea un flujo de memoria para almacenar el PDF generado
             var stream = new MemoryStream();
 
+            // Crea el documento PDF utilizando la librería QuestPDF
             Document.Create(container =>
             {
+                // Define una página dentro del documento
                 container.Page(page =>
                 {
+                    // Establece el margen de la página
                     page.Margin(30);
 
+                    // Define el contenido de la página como una columna
                     page.Content().Column(col =>
                     {
-                        // Título simple
+                        // Agrega un título en negrita con tamaño de fuente 14
                         col.Item().Text("Nombre - Edad").Bold().FontSize(14);
 
-                        // Lista de alumnos
+                        // Itera sobre la lista de alumnos para mostrarlos en el PDF
                         foreach (var alumno in alumnos)
                         {
+                            // Agrega una línea por cada alumno con su nombre y edad
                             col.Item().Text($"{alumno.Nombre} - {alumno.Edad}").FontSize(12);
                         }
                     });
                 });
-            }).GeneratePdf(stream);
+            }).GeneratePdf(stream); // Genera el PDF y lo escribe en el flujo de memoria
 
+            // Reinicia la posición del flujo al inicio
             stream.Position = 0;
+
+            // Devuelve el archivo PDF generado como una respuesta para descarga
             return File(stream.ToArray(), "application/pdf", "ListadoAlumnos.pdf");
         }
+
+        // Método que exporta un documento Word con la lista de alumnos
         public IActionResult ExportarWord()
         {
+            // Obtiene la lista de alumnos desde la base de datos
             var alumnos = _context.Alumnos.ToList();
 
+            // Crea un flujo de memoria para almacenar el documento Word
             using (var stream = new MemoryStream())
             {
+                // Crea un nuevo documento Word utilizando la librería DocX
                 using (var doc = DocX.Create(stream))
                 {
-                    // Título
+                    // Inserta un título en el documento con formato en negrita y tamaño 14
                     var titulo = doc.InsertParagraph("Nombre - Edad")
                         .Bold()
                         .FontSize(14)
-                        .SpacingAfter(15);
+                        .SpacingAfter(15); // Espaciado después del título
 
-                    // Lista de alumnos
+                    // Itera sobre la lista de alumnos para agregarlos al documento
                     foreach (var alumno in alumnos)
                     {
+                        // Inserta una línea con el nombre y edad de cada alumno
                         doc.InsertParagraph($"{alumno.Nombre} - {alumno.Edad}");
                     }
 
+                    // Guarda el documento en el flujo de memoria
                     doc.Save();
                 }
 
+                // Establece la posición del flujo al inicio para que pueda ser leído
                 stream.Seek(0, SeekOrigin.Begin);
+
+                // Devuelve el archivo Word generado como respuesta para descarga
                 return File(stream.ToArray(),
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    "alumnos.docx");
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // Tipo MIME para Word
+                    "alumnos.docx"); // Nombre del archivo descargado
             }
         }
     }
